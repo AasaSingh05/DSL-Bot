@@ -6,8 +6,36 @@ const path = require('path');
 
 //const global function
 const deployCommands = async () => {
-    //call logic goes here
+    try {
+        const commands = [];
+
+        const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.js'));
+
+        for (const file of commandFiles) {
+            const command = require(`./commands/${file}`);
+            if ('data' in command && 'execute' in command) {
+                commands.push(command.data.toJSON());
+            } else {
+                console.log(`WARNING: The command at ${file} is missing a required 'data' or 'execute' property.`);
+            }
+        }
+    
+
+    const rest = new REST().setToken(process.env.BOT_TOKEN);
+
+    console.log(`Started refreshing application slash commands globally.`);
+
+    const data = await rest.put(
+        Routes.applicationCommands(process.env.CLIENT_ID),
+        { body: commands },
+    );
+
+    console.log('Successfully reloaded all commands!');
+    } catch (error) {
+        console.error('Error deploying commands:', error)
+    }
 }
+
 
 //client vars initialization
 const {
