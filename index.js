@@ -3,6 +3,8 @@ require('dotenv').config();
 const { REST, Routes } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
+const JimpImport = require('jimp');
+const Jimp = JimpImport.default ?? JimpImport; // normalize ESM default -> CommonJS
 
 //const global function
 const deployCommands = async () => {
@@ -151,6 +153,7 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
+// ---------------------- ⭐ STAR BOARD ⭐ ---------------------- //
 // Starboard: forward messages that reach the ⭐ threshold
 const STAR_THRESHOLD = (() => {
     const parsed = parseInt(process.env.STAR_THRESHOLD, 10);
@@ -163,6 +166,22 @@ const STAR_THRESHOLD = (() => {
 
 const STARBOARD_CHANNEL_ID = process.env.STARBOARD_CHANNEL_ID; // set this in .env
 const forwardedMap = new Map(); // originalMessageId -> starboardMessageId
+
+// helper: get dominant color from avatar by resizing to 1x1
+async function getDominantColorFromAvatar(url) {
+    try {
+        if (!url) return null;
+        const image = await Jimp.read(url);
+        image.resize(1, 1);
+        const hexNum = image.getPixelColor(0, 0); // integer
+        const { r, g, b } = Jimp.intToRGBA(hexNum);
+        const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+        return hex;
+    } catch (err) {
+        console.warn('Failed to get avatar color:', err);
+        return null;
+    }
+}
 
 client.on(Events.MessageReactionAdd, async (reaction, user) => {
     try {
@@ -192,7 +211,12 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
             return;
         }
 
+        // determine embed color from author's avatar (fallback to default)
+        const avatarUrl = msg.author?.displayAvatarURL?.({ extension: 'png', size: 128 }) ?? null;
+        const embedColor = (await getDominantColorFromAvatar(avatarUrl)) || '#2f3136';
+
         const embed = new EmbedBuilder()
+            .setColor(embedColor) // set color from avatar
             .setAuthor({
                 name: msg.author?.tag ?? 'Unknown',
                 iconURL: msg.author?.displayAvatarURL?.() ?? undefined
@@ -217,7 +241,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
         );
 
         const sent = await starChannel.send({
-            content: `Forwarded from <#${msg.channel.id}>`,
+            content: `⭐ | <#${msg.channelId}> | ⭐`,
             embeds: [embed],
             components: [jumpRow]
         });

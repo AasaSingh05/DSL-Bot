@@ -21,6 +21,7 @@
   "description": "",
   "dependencies": {
     "discord.js": "^14.23.2",
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "jimp": "^1.6.0"
   }
 }
