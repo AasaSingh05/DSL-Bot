@@ -250,5 +250,22 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     }
 });
 
+
+// ---------------------- TEXT REACTIONS ---------------------- //
+
+
+client.on(Events.MessageCreate, async (message) => {
+    try {
+        if (message.author?.bot) return;
+        const gifUrl = process.env.DO_IT_GIF || 'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExZm51NWExa213ODF3dmd6bWxpMm5uZXVqbDYxc3Qya2kyMHdmMnN3ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/pTQUOfSmjo2hG/giphy.gif';
+        // match "do it" (any whitespace, case-insensitive) OR the single word "dewit"
+        if (/\b(?:do\s+it|dewit)\b/i.test(message.content ?? '')) {
+            await message.reply({ content: gifUrl });
+        }
+    } catch (err) {
+        console.error('do-it handler error:', err);
+    }
+});
+
 //Logging into the bot itself
 client.login(process.env.BOT_TOKEN);
