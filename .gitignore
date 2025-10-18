@@ -3,3 +3,7 @@
 
 #Node modules
 node_modules/
+
+#npm dependencies
+package-lock.json
+

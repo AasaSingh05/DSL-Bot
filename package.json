@@ -17,5 +17,9 @@
     "url": "https://github.com/AasaSingh05/DSL-Bot/issues"
   },
   "homepage": "https://github.com/AasaSingh05/DSL-Bot#readme",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "discord.js": "^14.23.2",
+    "dotenv": "^17.2.3"
+  }
 }
