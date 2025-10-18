@@ -252,8 +252,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
 
 // ---------------------- TEXT REACTIONS ---------------------- //
-
-
+//-------------- DO IT GIF --------------//
 client.on(Events.MessageCreate, async (message) => {
     try {
         if (message.author?.bot) return;
@@ -264,6 +263,52 @@ client.on(Events.MessageCreate, async (message) => {
         }
     } catch (err) {
         console.error('do-it handler error:', err);
+    }
+});
+
+//-------------- YOUR MOM RESPONSE --------------//
+client.on(Events.MessageCreate, async (message) => {
+    try {
+        // ignore bot messages
+        if (message.author?.bot) return;
+
+        // command prefix and trimmed content
+        const prefix = '&';
+        const content = (message.content ?? '').trim();
+
+        // not a command -> ignore
+        if (!content.startsWith(prefix)) return;
+
+        // extract command name after '&' (e.g. &yourmom -> 'yourmom', &ym -> 'ym')
+        const [, cmd] = content.match(/^&([^\s]+)/) || [];
+        if (!cmd) return; // nothing after '&'
+
+        // handle the 'yourmom' command and shorthand 'ym'
+        const normalized = cmd.toLowerCase();
+        if (normalized !== 'yourmom' && normalized !== 'ym') return;
+
+        // must be a reply — get referenced message id
+        const refId = message.reference?.messageId;
+        if (!refId) {
+            await message.reply({ content: 'Reply to a message with `&yourmom` or `&ym` to use this.' });
+            return;
+        }
+
+        // fetch the original message (might fail if deleted / not accessible)
+        const original = await message.channel.messages.fetch(refId).catch(() => null);
+        if (!original) {
+            await message.reply({ content: 'Could not fetch the referenced message.' });
+            return;
+        }
+
+        // get original content (fallback if empty)
+        const originalText = original.content?.trim() || '[no text]';
+
+        // reply to the original message with the formatted string
+        await original.reply({ content: `your mom is a ${originalText}` });
+    } catch (err) {
+        // handler error logging
+        console.error('yourmom handler error:', err);
     }
 });
 
