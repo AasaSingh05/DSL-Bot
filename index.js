@@ -101,24 +101,32 @@ client.on(Event.InteractionCreate, async interaction  =>{
     //base case
     if(!intercation.isChatInputCommand()) return;
 
-     const command = client.commands.get(interaction.commandName);
+    //getting user interactions
+    const command = client.commands.get(interaction.commandName);
 
+    //if command doesnt exist handling 
     if (!command) {
-        // console.error(`No command matching ${interaction.commandName} was found.`)
+        console.error(`No command matching ${interaction.commandName} was found.`)
         return;
     }
 
+    //Executions try-catch handling
     try {
         await command.execute(interaction);
     } catch (error) {
         console.error(error);
+
+        //if ti was already replied or the interation was deffered
         if (interaction.replied || interaction.deferred) {
             await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true});
-        } else {
+        } 
+        
+        //if there was no reply
+        else {
             await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true});
         }
     }
 });
 
-
+//Logging into the bot itself
 client.login(process.env.BOT_TOKEN);
