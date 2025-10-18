@@ -94,4 +94,31 @@ client.once(Events.ClientReady, async( )=> {
     });
 
     console.log(`Status and activity has been set to : \n ${statusType} \t ${ActivityType} \t ${activityName} `);
-})
+});
+
+//handling interactions with / in disc
+client.on(Event.InteractionCreate, async interaction  =>{
+    //base case
+    if(!intercation.isChatInputCommand()) return;
+
+     const command = client.commands.get(interaction.commandName);
+
+    if (!command) {
+        // console.error(`No command matching ${interaction.commandName} was found.`)
+        return;
+    }
+
+    try {
+        await command.execute(interaction);
+    } catch (error) {
+        console.error(error);
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true});
+        } else {
+            await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true});
+        }
+    }
+});
+
+
+client.login(process.env.BOT_TOKEN);
