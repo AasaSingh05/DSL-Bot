@@ -92,6 +92,7 @@ for (const file of commandsFiles){
 client.once(Events.ClientReady, async () => {
     console.log(`Ready! Logged in as ${client.user.tag}`);
 
+    // Deploy commands / other startup tasks (existing code runs here)
     //deploy commmnds
     await deployCommands();
     console.log("Commands deployed globally!");
@@ -128,28 +129,177 @@ client.once(Events.ClientReady, async () => {
     });
 
     console.log(`Status and activity has been set to : \n ${statusType} \t ${activityType} \t ${activityName} `);
+
+    // ---- Improved dynamic presence (rotating, contextual, natural) ----
+    // Helper: nice number formatting
+    const nf = (n) => Intl.NumberFormat('en-US').format(n);
+
+    // Build activity suppliers so values refresh each tick
+    const activitySuppliers = [
+        // Playing a fun message with uptime in hours (keeps the "House Party" vibe but accurate)
+        () => ({ name: `House Party • ${ (process.uptime() / 3600).toFixed(1) } hrs`, type: ActivityType.Playing }),
+
+        // Watching server count (useful & looks real)
+        () => ({ name: `watching ${nf(client.guilds.cache.size)} servers`, type: ActivityType.Watching }),
+
+        // Listening hint for commands (looks like a bot doing work)
+        () => ({ name: `listening to ${process.env.PREFIX ?? '/'}help`, type: ActivityType.Listening }),
+
+        // Playing with user count (shows scale)
+        () => ({ name: `playing with ${nf(client.users.cache.size)} users`, type: ActivityType.Playing }),
+
+        // Competitive/streaming style line to add variety
+        () => ({ name: `competing for attention`, type: ActivityType.Competing }),
+    ];
+
+    // Choose initial status (can be ONLINE, IDLE, DND) — randomize a bit for realism
+    const statusPool = [PresenceUpdateStatus.Online, PresenceUpdateStatus.Idle];
+    const initialStatus = statusPool[Math.floor(Math.random() * statusPool.length)];
+
+    // Apply presence safely
+    const applyPresence = async (activityObj, status = initialStatus) => {
+        try {
+            await client.user.setPresence({
+                activities: [activityObj],
+                status
+            });
+        } catch (err) {
+            console.error('Failed to set presence:', err);
+        }
+    };
+
+    // Rotate activities every 30s with a small random jitter to avoid looking robotic
+    let idx = Math.floor(Math.random() * activitySuppliers.length);
+    const tick = async () => {
+        const supplier = activitySuppliers[idx % activitySuppliers.length];
+        const activity = supplier();
+        await applyPresence(activity);
+        idx++;
+    };
+
+    // start now and schedule
+    await tick();
+    const intervalMs = 30_000 + Math.floor(Math.random() * 7_000); // 30-37s
+    const presenceTimer = setInterval(tick, intervalMs);
+
+    // clear on process exit so it doesn't hang weirdly in tests or restarts
+    process.once('exit', () => clearInterval(presenceTimer));
+    process.once('SIGINT', () => process.exit());
+    process.once('SIGTERM', () => process.exit());
+
+    console.log('Dynamic presence rotation started.');
 });
 
-//handling interactions with / in disc
-client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+// parse a pipe-separated env variable into an array (preserves commas in phrases)
+function parsePresenceList(envKey) {
+    const val = process.env[envKey];
+    if (!val) return [];
+    return val.split('|').map(s => s.trim()).filter(Boolean);
+}
 
-    const command = client.commands.get(interaction.commandName);
-    if (!command) {
-        console.error(`No command matching ${interaction.commandName} was found.`);
-        return;
-    }
+// load lists (user will populate these later)
+const playingList = parsePresenceList('PRESENCE_PLAYING');
+const listeningList = parsePresenceList('PRESENCE_LISTENING');
 
+// ensure there's at least one entry per type to avoid empty presence
+const defaultPlaying = ['House Party'];
+const defaultListening = ['the vibes'];
+
+const pools = [
+    { type: ActivityType.Playing, list: playingList.length ? playingList : defaultPlaying },
+    { type: ActivityType.Listening, list: listeningList.length ? listeningList : defaultListening }
+];
+
+// indices to remember position in each pool (round-robin)
+const indices = pools.map(() => 0);
+
+// rotation interval (ms)
+const intervalMs = Math.max(5_000, parseInt(process.env.PRESENCE_INTERVAL_MS || '30000', 10));
+
+// apply presence safely
+async function applyPresenceFromPool(poolIndex) {
     try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true});
-        } else {
-            await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true});
-        }
+        const poolIdx = poolIndex % pools.length;
+        const pool = pools[poolIdx];
+        const i = indices[poolIdx] % pool.list.length;
+        const name = pool.list[i];
+        indices[poolIdx] = (indices[poolIdx] + 1) % pool.list.length;
+
+        const activity = { name, type: pool.type };
+
+        await client.user.setPresence({
+            activities: [activity],
+            status: PresenceUpdateStatus.Online
+        });
+    } catch (err) {
+        console.error('Failed to set presence:', err);
     }
+}
+
+// start presence rotation only once the client is ready
+function startPresenceRotation() {
+    let presenceStep = Math.floor(Math.random() * pools.length);
+
+    // run one immediately and then schedule
+    applyPresenceFromPool(presenceStep).catch(() => {});
+    presenceStep = (presenceStep + 1) % pools.length;
+
+    const presenceTimer = setInterval(async () => {
+        await applyPresenceFromPool(presenceStep);
+        presenceStep = (presenceStep + 1) % pools.length;
+    }, intervalMs);
+
+    // cleanup on shutdown
+    process.once('exit', () => clearInterval(presenceTimer));
+    process.once('SIGINT', () => process.exit());
+    process.once('SIGTERM', () => process.exit());
+
+    return presenceTimer;
+}
+
+client.once(Events.ClientReady, async () => {
+    console.log(`Ready! Logged in as ${client.user.tag}`);
+
+    // Deploy commands / other startup tasks (existing code runs here)
+    //deploy commmnds
+    await deployCommands();
+    console.log("Commands deployed globally!");
+    
+    
+    //setting bot status
+    const statusType = process.env.BOT_STATUS || 'online';
+    const activityType = process.env.ACTIVITY_TYPE || 'PLAYING';
+    const activityName = process.env.ACTIVITY_NAME || 'Discord';
+    
+    //mapping the type string to a enum
+    const activityTypeMap = {
+        'PLAYING':ActivityType.Playing,
+        'WATCHING':ActivityType.Watching,
+        'LISTENING':ActivityType.Listening,
+        'STREAMING':ActivityType.Streaming,
+        'COMPETING':ActivityType.Competing
+    };
+
+    const statusMap = {
+        'online': PresenceUpdateStatus.Online,
+        'idle': PresenceUpdateStatus.Idle,
+        'dnd': PresenceUpdateStatus.DoNotDisturb,
+        'invisible': PresenceUpdateStatus.Invisible
+    };
+
+    //setting bot status
+    client.user.setPresence({
+        status: statusMap[statusType.toLowerCase()] || PresenceUpdateStatus.Online,
+        activities: [{
+            name: activityName,
+            type: activityTypeMap[activityType] || ActivityType.Playing
+        }]
+    });
+
+    console.log(`Status and activity has been set to : \n ${statusType} \t ${activityType} \t ${activityName} `);
+
+    // start the presence rotation now that client.user is available
+    startPresenceRotation();
 });
 
 // ---------------------- ⭐ STAR BOARD ⭐ ---------------------- //
