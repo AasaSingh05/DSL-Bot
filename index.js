@@ -46,7 +46,10 @@ const {
     ActivityType,
     PresenceUpdateStatus,
     Events,
-    EmbedBuilder
+    EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
 } = require('discord.js');
 
 //client instance loading
@@ -205,9 +208,18 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
             embed.setImage(firstAttachment.url);
         }
 
+        // create a link button that jumps to the original message
+        const jumpRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setLabel('Jump to message')
+                .setStyle(ButtonStyle.Link)
+                .setURL(msg.url)
+        );
+
         const sent = await starChannel.send({
-            content: `Forwarded from <#${msg.channel.id}> • [Jump to message](${msg.url})`,
-            embeds: [embed]
+            content: `Forwarded from <#${msg.channel.id}>`,
+            embeds: [embed],
+            components: [jumpRow]
         });
 
         forwardedMap.set(msg.id, sent.id);
