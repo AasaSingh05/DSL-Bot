@@ -3,8 +3,7 @@ require('dotenv').config();
 const { REST, Routes } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
-const JimpImport = require('jimp');
-const Jimp = JimpImport.default ?? JimpImport; // normalize ESM default -> CommonJS
+const { Jimp, intToRGBA } = require('jimp');
 
 //const global function
 const deployCommands = async () => {
@@ -167,16 +166,15 @@ const STAR_THRESHOLD = (() => {
 const STARBOARD_CHANNEL_ID = process.env.STARBOARD_CHANNEL_ID; // set this in .env
 const forwardedMap = new Map(); // originalMessageId -> starboardMessageId
 
-// helper: get dominant color from avatar by resizing to 1x1
+// helper: get dominant color from avatar by resizing to 1x1 (Jimp v1 API)
 async function getDominantColorFromAvatar(url) {
     try {
         if (!url) return null;
         const image = await Jimp.read(url);
-        image.resize(1, 1);
-        const hexNum = image.getPixelColor(0, 0); // integer
-        const { r, g, b } = Jimp.intToRGBA(hexNum);
-        const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-        return hex;
+        await image.resize({ w: 1, h: 1 }); // v1 uses an options object
+        const hexNum = image.getPixelColor(0, 0);
+        const { r, g, b } = intToRGBA(hexNum); // v1 moved this to a named export
+        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
     } catch (err) {
         console.warn('Failed to get avatar color:', err);
         return null;
