@@ -7,3 +7,6 @@ node_modules/
 #npm dependencies
 package-lock.json
 
+#ignore zip and zip folder
+*.zip
+DSLBOTZIP/
