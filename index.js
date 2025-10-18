@@ -53,3 +53,45 @@ for (const file of commandsFiles){
         console.log(`The command ${filePath} is missing a required "data" or "Execute" property`);
     }
 }
+
+//deployment and bot status code
+client.once(Events.ClientReady, async( )=> {
+    console.log(`Ready! Logged in as ${client.user.tag}`);
+
+    //deploy commmnds
+    await deployCommands();
+    console.log("Commands deployed globally!");
+    
+    
+    //setting bot status
+    const statusType = process.env.BOT_STATUS || 'online';
+    const activityType = process.env.ACTIVITY_TYPE || 'PLAYING';
+    const activityName = process.env.ACTIVITY_NAME || 'Discord';
+    
+    //mapping the type string to a enum
+    const activityTypeMap = {
+        'PLAYING':ActivityType.Playing,
+        'WATCHING':ActivityType.Watching,
+        'LISTENING':ActivityType.Listening,
+        'STREAMING':ActivityType.Streaming,
+        'COMPETING':ActivityType.Competing
+    };
+
+    const statusMap = {
+        'online': PresenceUpdateStatus.Online,
+        'idle': PresenceUpdateStatus.Idle,
+        'dnd': PresenceUpdateStatus.DoNotDisturb,
+        'invisible': PresenceUpdateStatus.Invisible
+    };
+
+    //setting bot status
+    client.user.setPresence({
+        status: statusMap[online],
+        activities:[{
+            name : activityName,
+            type: activityTypeMap[ActivityType]
+        }]
+    });
+
+    console.log(`Status and activity has been set to : \n ${statusType} \t ${ActivityType} \t ${activityName} `);
+})
