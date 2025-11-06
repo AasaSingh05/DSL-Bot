@@ -1,5 +1,5 @@
 //imports and requirements setup
-require('dotenv').config();
+require('dotenv').config({ debug: true });
 const { REST, Routes } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
